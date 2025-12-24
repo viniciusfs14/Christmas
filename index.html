@@ -11,7 +11,7 @@
         body, html {
             margin: 0; padding: 0; height: 100%; overflow: hidden;
             font-family: 'Poppins', sans-serif;
-            background: radial-gradient(circle at 50% 30%, #1a0b2e, #000000); /* Roxo bem escuro e preto */
+            background: radial-gradient(circle at 50% 30%, #1a0b2e, #000000);
             display: flex; justify-content: center; align-items: center;
             touch-action: none;
         }
@@ -37,7 +37,6 @@
         
         .glass-sphere {
             position: relative; width: 320px; height: 320px; border-radius: 50%;
-            /* Vidro mais realista */
             background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.01) 50%, transparent 80%);
             box-shadow: inset 0 0 20px rgba(255,255,255,0.2), 0 0 25px rgba(100,100,255,0.1);
             border: 1px solid rgba(255,255,255,0.15);
@@ -73,7 +72,7 @@
     <div id="overlay">
         <h1>✨</h1>
         <p>Aumente o som.</p>
-        <p style="font-size: 0.8rem; opacity: 0.7;">(Mexa o celular ou toque na neve)</p>
+        <p style="font-size: 0.8rem; opacity: 0.7;">(Mexa o celular para agitar a neve)</p>
         <button id="start-btn">VER PRESENTE</button>
     </div>
 
@@ -107,126 +106,132 @@
         const captionText = document.getElementById('caption-text');
         
         let engine, render, world, runner;
+        const width = 320;
+        const height = 320;
 
         function initPhysics() {
-            const canvas = document.getElementById('snow-canvas');
-            const width = 320;
-            const height = 320;
-
             var Engine = Matter.Engine, Render = Matter.Render, World = Matter.World, 
                 Bodies = Matter.Bodies, Runner = Matter.Runner, Mouse = Matter.Mouse, 
-                MouseConstraint = Matter.MouseConstraint;
+                MouseConstraint = Matter.MouseConstraint, Events = Matter.Events;
 
             engine = Engine.create();
             world = engine.world;
 
-            // Renderização Transparente
             render = Render.create({
-                canvas: canvas, engine: engine,
+                canvas: document.getElementById('snow-canvas'), engine: engine,
                 options: { width: width, height: height, background: 'transparent', wireframes: false }
             });
 
-            // Paredes Invisíveis (Grossas para nada escapar)
-            const thick = 200; // Paredes de 200px de espessura
+            // Paredes (Quadrado invisível ao redor)
+            const thick = 200;
             World.add(world, [
-                Bodies.rectangle(width/2, height + thick/2, width+thick*2, thick, { isStatic: true, render: {opacity: 0} }),
-                Bodies.rectangle(width/2, -thick/2, width+thick*2, thick, { isStatic: true, render: {opacity: 0} }),
-                Bodies.rectangle(-thick/2, height/2, thick, height+thick*2, { isStatic: true, render: {opacity: 0} }),
-                Bodies.rectangle(width + thick/2, height/2, thick, height+thick*2, { isStatic: true, render: {opacity: 0} })
+                Bodies.rectangle(width/2, height + thick/2, width+thick*2, thick, { isStatic: true, render: {opacity:0}}),
+                Bodies.rectangle(width/2, -thick/2, width+thick*2, thick, { isStatic: true, render: {opacity:0}}),
+                Bodies.rectangle(-thick/2, height/2, thick, height+thick*2, { isStatic: true, render: {opacity:0}}),
+                Bodies.rectangle(width + thick/2, height/2, thick, height+thick*2, { isStatic: true, render: {opacity:0}})
             ]);
 
-            // Criar Neve "Suave"
+            // Neve
             for (let i = 0; i < 110; i++) {
-                let x = Math.random() * width;
-                let y = Math.random() * height;
-                let size = Math.random() * 3 + 2; // Tamanho
-                
-                let flake = Bodies.circle(x, y, size, {
-                    friction: 0.001, 
-                    restitution: 0.5, // Menos quique (antes era 0.8)
-                    density: 0.005,   // Um pouco mais pesada
-                    frictionAir: 0.04, // IMPORTANTE: Resistencia do ar (simula água)
-                    label: 'snow',
-                    render: { fillStyle: '#ffffff' }
+                let size = Math.random() * 3 + 2;
+                let flake = Bodies.circle(Math.random() * width, Math.random() * height, size, {
+                    friction: 0.001, restitution: 0.5, density: 0.005, frictionAir: 0.04,
+                    label: 'snow', render: { fillStyle: '#ffffff' }
                 });
                 World.add(world, flake);
             }
 
-            // Controle pelo Mouse/Dedo
-            let mouse = Mouse.create(render.canvas);
-            let mouseConstraint = MouseConstraint.create(engine, {
-                mouse: mouse,
-                constraint: { stiffness: 0.1, render: { visible: false } }
+            // --- NOVO: SISTEMA DE SEGURANÇA (Prevent Escape) ---
+            Events.on(engine, 'beforeUpdate', function(event) {
+                const bodies = Matter.Composite.allBodies(engine.world);
+                const centerX = width / 2;
+                const centerY = height / 2;
+                const maxSpeed = 15; // 1. Limite de Velocidade Máxima
+                const safeRadius = width / 2 + 20; // 2. Raio de segurança (um pouco maior que o globo)
+
+                bodies.forEach(function(body) {
+                    if (body.label === 'snow') {
+                        // SEGURANÇA 1: Limitar Velocidade
+                        let speed = Matter.Vector.magnitude(body.velocity);
+                        if (speed > maxSpeed) {
+                            Matter.Body.setVelocity(body, {
+                                x: body.velocity.x * (maxSpeed / speed),
+                                y: body.velocity.y * (maxSpeed / speed)
+                            });
+                        }
+
+                        // SEGURANÇA 2: Teletransporte se escapar
+                        // Calcula distância do centro
+                        let dx = body.position.x - centerX;
+                        let dy = body.position.y - centerY;
+                        let distanceFromCenter = Math.sqrt(dx*dx + dy*dy);
+
+                        if (distanceFromCenter > safeRadius) {
+                            // Se escapou, reseta para o topo do globo
+                            Matter.Body.setPosition(body, {
+                                x: centerX + (Math.random() - 0.5) * 100,
+                                y: 50
+                            });
+                            // Zera a velocidade para ela cair suavemente
+                            Matter.Body.setVelocity(body, { x: 0, y: 0 });
+                        }
+                    }
+                });
             });
-            World.add(world, mouseConstraint);
+
+            // Mouse Control
+            let mouse = Mouse.create(render.canvas);
+            World.add(world, MouseConstraint.create(engine, {
+                mouse: mouse, constraint: { stiffness: 0.1, render: { visible: false } }
+            }));
             render.mouse = mouse; 
 
-            // Rodar
             runner = Runner.create();
             Runner.run(runner, engine);
             Render.run(render);
         }
 
-        // --- Sensores ---
-        
-        // Inclinação Suave
+        // Sensores
         function handleTilt(e) {
             if(!engine) return;
-            let x = (e.gamma || 0) / 40; 
-            let y = (e.beta || 0) / 40;
-            // Limita a gravidade
-            engine.world.gravity.x = Math.min(Math.max(x, -1), 1);
-            engine.world.gravity.y = Math.min(Math.max(y, -1), 1);
+            engine.world.gravity.x = Math.min(Math.max((e.gamma || 0) / 40, -1), 1);
+            engine.world.gravity.y = Math.min(Math.max((e.beta || 0) / 40, -1), 1);
         }
 
-        // Sacudida Controlada
         let lastShake = 0;
         function handleShake(e) {
             if(!engine) return;
             let acc = e.accelerationIncludingGravity;
             if(!acc) return;
-            
-            // Verifica a força total
             let force = Math.abs(acc.x) + Math.abs(acc.y) + Math.abs(acc.z);
             let now = Date.now();
 
-            // Só ativa se for forte E se já passou um tempinho da última (evita spam)
             if (force > 25 && now - lastShake > 500) { 
                 lastShake = now;
                 let bodies = Matter.Composite.allBodies(engine.world);
                 bodies.forEach(b => {
                     if(b.label === 'snow') {
-                        // Força controlada
                         Matter.Body.applyForce(b, b.position, {
-                            x: (Math.random() - 0.5) * 0.002, // Força MUITO menor que antes
-                            y: -0.002 // Empurra levemente pra cima
+                            x: (Math.random() - 0.5) * 0.002, 
+                            y: -0.002 
                         });
                     }
                 });
             }
         }
 
-        // --- Iniciar ---
         function startApp() {
             music.volume = 0.5;
             music.play().catch(()=>{});
-            
             initPhysics();
-            
-            // Pedir permissão iOS
             if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
-                DeviceMotionEvent.requestPermission()
-                    .then(state => {
-                        if (state === 'granted') {
-                            window.addEventListener('deviceorientation', handleTilt);
-                            window.addEventListener('devicemotion', handleShake);
-                        }
-                    }).catch(e => console.error(e));
+                DeviceMotionEvent.requestPermission().then(s => {
+                    if(s==='granted') { window.addEventListener('deviceorientation', handleTilt); window.addEventListener('devicemotion', handleShake); }
+                });
             } else {
                 window.addEventListener('deviceorientation', handleTilt);
                 window.addEventListener('devicemotion', handleShake);
             }
-
             overlay.style.opacity = 0;
             setTimeout(() => { overlay.style.display = 'none'; mainContainer.style.opacity = 1; }, 800);
             startCarousel();
@@ -234,17 +239,14 @@
 
         startBtn.addEventListener('click', startApp);
 
-        // --- Legendas ---
+        // FOTOS E LEGENDAS
         const images = document.querySelectorAll('.photo-carousel img');
-        
-        // SEUS TEXTOS AQUI
         const captions = [
             "Desde 2018...", 
             "Momentos inesquecíveis", 
             "Player 1 & Player 2", 
             "Feliz Natal! Você é especial pra mim."
         ];
-        
         let idx = 0;
         function startCarousel() {
             if(captions[0]) captionText.innerText = captions[0];
