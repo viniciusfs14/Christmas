@@ -3,21 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Para Nós</title>
+    <title>Merry Christmas ♡  </title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;600&family=Playfair+Display:ital,wght@1,600&display=swap" rel="stylesheet">
     
     <style>
         body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #050505; touch-action: none; font-family: 'Montserrat', sans-serif; }
         
-        /* Fundo Atmosférico */
         .bg {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background: radial-gradient(circle at center, #1a2a6c, #000);
             z-index: -1;
         }
 
-        /* Overlay de Início */
         #overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.95); z-index: 2000;
@@ -32,16 +30,16 @@
             box-shadow: 0 0 20px rgba(168, 192, 255, 0.4);
         }
 
-        /* Container do Globo */
+     
         #globe-wrapper {
             position: relative;
             width: 320px; height: 320px;
-            margin: auto; top: 50%; transform: translateY(-60%); /* Um pouco pra cima pra caber texto */
+            margin: auto; top: 50%; transform: translateY(-60%); 
             border-radius: 50%;
             box-shadow: 0 0 50px rgba(100, 200, 255, 0.1);
         }
 
-        /* Canvas de Física (Fundo) */
+    
         #physics-canvas {
             position: absolute; top: 0; left: 0;
             border-radius: 50%;
@@ -49,26 +47,26 @@
             background: rgba(255,255,255,0.05);
         }
 
-        /* Canvas de Raspadinha (Frente - O Gelo) */
+       
         #scratch-canvas {
             position: absolute; top: 0; left: 0;
             border-radius: 50%;
-            z-index: 10; /* Fica na frente da física */
+            z-index: 10; 
             cursor: grab;
             touch-action: none;
         }
 
-        /* Borda de Vidro e Brilho */
+      
         .glass-overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             border-radius: 50%;
             border: 4px solid rgba(255,255,255,0.1);
             box-shadow: inset 0 0 30px rgba(255,255,255,0.2);
-            pointer-events: none; /* Deixa o clique passar pro canvas */
+            pointer-events: none; 
             z-index: 20;
         }
 
-        /* Base do Globo */
+       
         .base {
             position: absolute; bottom: -50px; left: 50%; transform: translateX(-50%);
             width: 240px; height: 60px; background: linear-gradient(to bottom, #333, #111);
@@ -76,7 +74,7 @@
             box-shadow: 0 10px 30px black; border-top: 4px solid #555;
         }
 
-        /* Texto de Instrução / Final */
+        
         .message-area {
             position: absolute; bottom: 5%; width: 100%; text-align: center; color: #a8c0ff;
             pointer-events: none; transition: opacity 0.5s;
@@ -106,7 +104,7 @@
 
     <div class="message-area" id="msg-box">
         <h2 id="main-text">Está muito frio...</h2>
-        <p id="sub-text">Passe o dedo no vidro para limpar e ver o que tem dentro.</p>
+        <p id="sub-text">Passe o dedo no vidro para limpar e ver o que tem dentro...</p>
     </div>
 
     <audio id="music" loop>
@@ -114,9 +112,9 @@
     </audio>
 
     <script>
-        // --- CONFIGURAÇÃO ---
+        
         const photoList = [ '1.jpg', '2.jpeg', '3.jpeg']; 
-        // Dica: Use fotos quadradas se possível
+      
 
         const startBtn = document.getElementById('start-btn');
         const overlay = document.getElementById('overlay');
@@ -130,13 +128,13 @@
 
         let isRevealed = false;
 
-        // --- 1. CONFIGURAR O GELO (Raspadinha) ---
+        
         function initScratch() {
-            // Preenche o canvas com "Gelo"
-            ctxScratch.fillStyle = "rgba(200, 225, 255, 0.85)"; // Cor azulada de gelo
+            
+            ctxScratch.fillStyle = "rgba(200, 225, 255, 0.85)"; 
             ctxScratch.fillRect(0, 0, 320, 320);
             
-            // Adiciona texturinha de neve (opcional)
+           
             for(let i=0; i<100; i++) {
                 ctxScratch.fillStyle = "rgba(255,255,255,0.4)";
                 ctxScratch.beginPath();
@@ -144,7 +142,7 @@
                 ctxScratch.fill();
             }
 
-            // Configura o modo de "borracha"
+            
             ctxScratch.globalCompositeOperation = 'destination-out';
         }
 
@@ -152,13 +150,13 @@
             if(isRevealed) return;
 
             ctxScratch.beginPath();
-            ctxScratch.arc(x, y, 25, 0, Math.PI * 2); // Tamanho do dedo
+            ctxScratch.arc(x, y, 25, 0, Math.PI * 2); 
             ctxScratch.fill();
             
             checkProgress();
         }
 
-        // Detectar raspagem (Mouse e Touch)
+      
         function getPos(canvas, evt) {
             const rect = canvas.getBoundingClientRect();
             return {
@@ -169,7 +167,7 @@
 
         ['mousemove', 'touchmove'].forEach(evtType => {
             scratchCanvas.addEventListener(evtType, (e) => {
-                // Só raspa se tiver botão pressionado (mouse) ou toque
+               
                 if (evtType === 'mousemove' && e.buttons !== 1) return;
                 e.preventDefault(); 
                 const pos = getPos(scratchCanvas, e);
@@ -177,26 +175,26 @@
             });
         });
 
-        // --- 2. CHECAR VITÓRIA (Gamification) ---
+       
         let checkThrottle = 0;
         function checkProgress() {
             checkThrottle++;
-            if(checkThrottle % 10 !== 0) return; // Não checa todo frame pra não pesar
+            if(checkThrottle % 10 !== 0) return; 
 
-            // Pega os pixels e vê quantos estão transparentes
+          
             const imgData = ctxScratch.getImageData(0, 0, 320, 320);
             const pixels = imgData.data;
             let transparent = 0;
             
-            // Checa pixel sim, pixel não (otimização)
-            for (let i = 3; i < pixels.length; i += 8) { // i+3 é o Alpha (transparência)
+       
+            for (let i = 3; i < pixels.length; i += 8) { 
                 if (pixels[i] < 128) transparent++;
             }
 
             const total = pixels.length / 8;
             const percent = (transparent / total) * 100;
 
-            if (percent > 50 && !isRevealed) { // Se limpou 50%
+            if (percent > 50 && !isRevealed) {
                 revealAll();
             }
         }
@@ -204,19 +202,19 @@
         function revealAll() {
             isRevealed = true;
             scratchCanvas.style.transition = "opacity 2s";
-            scratchCanvas.style.opacity = "0"; // Derrete o resto suavemente
+            scratchCanvas.style.opacity = "0"; 
             
-            // Troca a mensagem
+          
             msgBox.style.opacity = 0;
             setTimeout(() => {
-                mainText.innerText = "Agora vejo tudo com clareza.";
-                subText.innerText = "Nossas memórias são meu lugar favorito. Feliz Natal!";
+                mainText.innerText = "Agora você vê tudo com clareza...";
+                subText.innerText = "Nossas memórias são meu lugar favorito... Feliz Natal Ju <3";
                 msgBox.style.opacity = 1;
             }, 1000);
         }
 
 
-        // --- 3. FÍSICA MATTER.JS (O que está dentro) ---
+      
         function initPhysics() {
             var Engine = Matter.Engine, Render = Matter.Render, Runner = Matter.Runner,
                 Bodies = Matter.Bodies, Composite = Matter.Composite, Mouse = Matter.Mouse,
@@ -231,7 +229,7 @@
                 options: { width: 320, height: 320, background: 'transparent', wireframes: false }
             });
 
-            // Paredes Invisíveis
+          
             const thick = 100;
             const w = 320, h = 320;
             Composite.add(world, [
@@ -241,18 +239,18 @@
                 Bodies.rectangle(w+thick/2, h/2, thick, h, { isStatic: true, render:{opacity:0} })
             ]);
 
-            // FOTOS FLUTUANTES
+          
             photoList.forEach(imgSrc => {
-                let body = Bodies.rectangle(Math.random()*200+60, Math.random()*200, 70, 70, { // Tamanho da foto
+                let body = Bodies.rectangle(Math.random()*200+60, Math.random()*200, 70, 70, { 
                     restitution: 0.5,
                     render: {
-                        sprite: { texture: imgSrc, xScale: 0.15, yScale: 0.15 } // AJUSTE A ESCALA AQUI!
+                        sprite: { texture: imgSrc, xScale: 0.15, yScale: 0.15 }
                     }
                 });
                 Composite.add(world, body);
             });
 
-            // NEVE INTERNA
+    
             for(let i=0; i<80; i++){
                 let snow = Bodies.circle(Math.random()*w, Math.random()*h, 2, {
                     frictionAir: 0.02, density: 0.01,
@@ -261,7 +259,7 @@
                 Composite.add(world, snow);
             }
 
-            // CONTROLE DE MOVIMENTO (Giroscópio + Sacudida)
+            
             window.addEventListener('deviceorientation', (e) => {
                 let x = (e.gamma || 0) / 20; let y = (e.beta || 0) / 20;
                 engine.world.gravity.x = Math.min(Math.max(x, -1), 1);
@@ -285,19 +283,19 @@
             Render.run(render);
         }
 
-        // --- INICIALIZAÇÃO ---
+        
         startBtn.addEventListener('click', () => {
             music.volume = 0.5;
             music.play().catch(()=>{});
             
-            // Tenta permissão iOS
+           
             if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
                 DeviceMotionEvent.requestPermission().then(r => { if(r==='granted') initPhysics(); });
             } else {
                 initPhysics();
             }
 
-            initScratch(); // Prepara o gelo
+            initScratch(); 
             overlay.style.opacity = 0;
             setTimeout(() => { overlay.style.display = 'none'; }, 1000);
         });
