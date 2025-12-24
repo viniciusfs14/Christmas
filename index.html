@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Nosso Globo de Neve</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;600&display=swap');
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden;
+            font-family: 'Poppins', sans-serif;
+            background: radial-gradient(circle at center, #1a2a6c, #b21f1f, #fdbb2d); /* Fundo mais natalino */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* --- Overlay Inicial (Necessário para permissão no iOS) --- */
+        #overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            color: white;
+            text-align: center;
+            transition: opacity 0.8s;
+        }
+        
+        #start-btn {
+            margin-top: 20px;
+            padding: 15px 30px;
+            background: #fdbb2d;
+            color: #1a2a6c;
+            border: none;
+            border-radius: 30px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            animation: pulse 2s infinite;
+        }
+
+        /* --- Estrutura do Globo --- */
+        .globe-container {
+            position: relative;
+            width: 320px;
+            height: 400px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            opacity: 0; /* Começa invisível */
+            transition: opacity 2s ease;
+        }
+
+        /* A esfera de vidro */
+        .glass-sphere {
+            position: relative;
+            width: 320px;
+            height: 320px;
+            border-radius: 50%;
+            /* Efeito de vidro */
+            background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.2), rgba(255,255,255,0) 70%);
+            box-shadow: inset 0 0 20px rgba(255,255,255,0.5), 0 10px 20px rgba(0,0,0,0.3);
+            border: 2px solid rgba(255,255,255,0.4);
+            overflow: hidden; /* Importante: prende tudo dentro do círculo */
+            z-index: 10;
+        }
+
+        /* Carrossel de Fotos (Fica no fundo do globo) */
+        .photo-carousel {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 1; /* Atrás da neve */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .photo-carousel img {
+            position: absolute;
+            width: 110%; /* Um pouco maior para cobrir bem */
+            height: 110%;
+            object-fit: cover;
+            opacity: 0;
+            transition: opacity 1s ease-in-out;
+            filter: brightness(0.8); /* Um pouco mais escuro para a neve destacar */
+        }
+        
+        .photo-carousel img.active { opacity: 1; }
+
+        /* Canvas da Neve (Gerado pelo Matter.js) */
+        #snow-canvas {
+            position: absolute;
+            top: 0; left: 0;
+            z-index: 5; /* Na frente das fotos */
+            pointer-events: none; /* Deixa clicar através dele se precisar */
+        }
+
+        /* Brilho extra no vidro */
+        .shine {
+            position: absolute;
+            top: 10%; left: 15%;
+            width: 70px; height: 40px;
+            background: rgba(255,255,255,0.4);
+            border-radius: 50%;
+            transform: rotate(-35deg);
+            z-index: 20;
+            filter: blur(5px);
+        }
+
+        /* Base do Globo */
+        .base {
+            width: 260px;
+            height: 60px;
+            background: linear-gradient(to right, #432311, #7a4a2b, #432311);
+            margin-top: -20px; /* Encaixa na bola */
+            border-radius: 0 0 40px 40px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+            z-index: 5;
+            position: relative;
+            border-top: 5px solid #cba358; /* Detalhe dourado */
+        }
+
+        /* Texto */
+        .caption-container {
+            position: absolute;
+            bottom: -80px;
+            width: 100%;
+            text-align: center;
+            color: white;
+            text-shadow: 1px 1px 5px rgba(0,0,0,0.8);
+        }
+
+        @keyframes pulse { 0% { transform: scale(0.95); } 50% { transform: scale(1); } 100% { transform: scale(0.95); } }
+    </style>
+</head>
+<body>
+
+    <div id="overlay">
+        <h1>🎁<br>Um presente interativo<br>para você.</h1>
+        <p style="font-size: 0.8rem; margin-top: 10px;">(Ative o som e permita o movimento se pedir)</p>
+        <button id="start-btn">Abrir Globo de Neve</button>
+    </div>
+
+    <audio id="bg-music" loop>
+        <source src="music.mp3" type="audio/mpeg"> </audio>
+
+    <div class="globe-container" id="main-container">
+        <div class="glass-sphere">
+            <div class="shine"></div>
+            
+            <canvas id="snow-canvas"></canvas>
+
+            <div class="photo-carousel">
+                 <img src="foto1.jpg" class="active">
+                <img src="foto2.jpg">
+                <img src="foto3.jpg">
+            </div>
+        </div>
+        <div class="base"></div>
+        <div class="caption-container">
+            <h3 id="caption-text">Desde 2018...</h3>
+        </div>
+    </div>
+
+    <script>
+        // Configurações Iniciais
+        const startBtn = document.getElementById('start-btn');
+        const overlay = document.getElementById('overlay');
+        const mainContainer = document.getElementById('main-container');
+        const music = document.getElementById('bg-music');
+        const captionText = document.getElementById('caption-text');
+        
+        let engine, render, world; // Variáveis do Matter.js
+
+        // --- 1. Configuração do Matter.js (Física) ---
+        function initPhysics() {
+            const canvas = document.getElementById('snow-canvas');
+            const width = 320;
+            const height = 320;
+
+            // Módulos do Matter.js
+            var Engine = Matter.Engine,
+                Render = Matter.Render,
+                World = Matter.World,
+                Bodies = Matter.Bodies,
+                Runner = Matter.Runner;
+
+            engine = Engine.create();
+            world = engine.world;
+
+            // Configurar o renderizador (o visual)
+            render = Render.create({
+                canvas: canvas,
+                engine: engine,
+                options: {
+                    width: width,
+                    height: height,
+                    background: 'transparent', // Fundo transparente para ver as fotos
+                    wireframes: false // Mostrar cores sólidas, não linhas
+                }
+            });
+
+            // Adicionar Paredes Invisíveis (para a neve não cair do globo)
+            // Criamos um "quadrado" invisível ao redor do círculo. O CSS overflow:hidden cuida do resto.
+            const wallThickness = 50;
+            const ground = Bodies.rectangle(width/2, height + wallThickness/2, width + wallThickness*2, wallThickness, { isStatic: true, render: {opacity: 0} });
+            const ceiling = Bodies.rectangle(width/2, -wallThickness/2, width + wallThickness*2, wallThickness, { isStatic: true, render: {opacity: 0} });
+            const leftWall = Bodies.rectangle(-wallThickness/2, height/2, wallThickness, height + wallThickness*2, { isStatic: true, render: {opacity: 0} });
+            const rightWall = Bodies.rectangle(width + wallThickness/2, height/2, wallThickness, height + wallThickness*2, { isStatic: true, render: {opacity: 0} });
+            World.add(world, [ground, ceiling, leftWall, rightWall]);
+
+            // Adicionar as Bolinhas de Neve
+            for (let i = 0; i < 120; i++) {
+                let x = Math.random() * width;
+                let y = Math.random() * height;
+                let size = Math.random() * 4 + 2; // Tamanho entre 2 e 6
+                
+                let snowflake = Bodies.circle(x, y, size, {
+                    friction: 0.05, // Pouco atrito
+                    restitution: 0.4, // Um pouco de "quique"
+                    density: 0.01, // Leve
+                    render: {
+                        fillStyle: '#ffffff', // Cor branca
+                        opacity: Math.random() * 0.5 + 0.5 // Opacidade variada
+                    }
+                });
+                World.add(world, snowflake);
+            }
+            
+            // Iniciar a simulação
+            var runner = Runner.create();
+            Runner.run(runner, engine);
+            Render.run(render);
+        }
+
+        // --- 2. Controle do Acelerômetro (Giroscópio) ---
+        function handleTilt(event) {
+            if (!engine) return;
+
+            // Beta: inclinação frente/trás (-180 a 180). Controla gravidade Y.
+            // Gamma: inclinação esquerda/direita (-90 a 90). Controla gravidade X.
+            
+            // Limitamos e suavizamos os valores
+            let gravityX = (event.gamma || 0) / 45; // Divide para suavizar
+            let gravityY = (event.beta || 0) / 45;
+
+            // Clamp (limitar) os valores para a gravidade não ficar louca
+            gravityX = Math.min(Math.max(gravityX, -1.5), 1.5);
+            gravityY = Math.min(Math.max(gravityY, -1.5), 1.5);
+
+            // Aplica a nova gravidade ao mundo de física
+            engine.world.gravity.x = gravityX;
+            engine.world.gravity.y = gravityY;
+        }
+
+        function requestMotionPermission() {
+            // Para iOS 13+ é necessário pedir permissão
+            if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+                DeviceMotionEvent.requestPermission()
+                    .then(permissionState => {
+                        if (permissionState === 'granted') {
+                            window.addEventListener('deviceorientation', handleTilt);
+                        } else {
+                            alert("Sem permissão de movimento, a neve cairá apenas para baixo.");
+                        }
+                    })
+                    .catch(console.error);
+            } else {
+                // Dispositivos Android ou iOS mais antigos (geralmente funciona direto)
+                window.addEventListener('deviceorientation', handleTilt);
+            }
+        }
+
+
+        // --- 3. Inicialização Geral ---
+        startBtn.addEventListener('click', () => {
+            // Toca música
+            music.volume = 0.5;
+            music.play().catch(e => console.log("Erro musica", e));
+            
+            // Tenta ativar sensores
+            requestMotionPermission();
+
+            // Inicia a física
+            initPhysics();
+
+            // Esconde overlay e mostra globo
+            overlay.style.opacity = 0;
+            setTimeout(() => overlay.style.display = 'none', 800);
+            mainContainer.style.opacity = 1;
+
+            // Inicia carrossel de fotos
+            startCarousel();
+        });
+
+        // Carrossel Simples (Igual ao anterior)
+        const images = document.querySelectorAll('.photo-carousel img');
+        const captions = ["Nossa parceria...", "Momentos épicos...", "Player 1 e Player 2", "Feliz Natal!"];
+        let currentIdx = 0;
+        function startCarousel() {
+             setInterval(() => {
+                images[currentIdx].classList.remove('active');
+                currentIdx = (currentIdx + 1) % images.length;
+                images[currentIdx].classList.add('active');
+                if(captions[currentIdx]) captionText.innerText = captions[currentIdx];
+            }, 4500);
+        }
+
+    </script>
+</body>
+</html>
